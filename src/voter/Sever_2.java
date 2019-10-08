@@ -25,10 +25,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.JFrame;
 import javax.swing.text.TabableView;
 
 import javafx.application.Application;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -42,8 +44,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import util.GuiUtils;
 
 class AcceptThread extends Thread{
+	//存储候选人对应的票数
+	public static Map<String,Integer> map = new HashMap<String,Integer>();
 	//存储向服务器发起连接的socke，用于发送投票结果
 	ArrayList<Socket> socketlist = new ArrayList<Socket>();
 	Socket clientSocket = null;
@@ -53,12 +59,15 @@ class AcceptThread extends Thread{
 	
 	public void run() {
 		//启动accept监听进程
+		map.clear();
 		while(true) {			
 			try {
 				clientSocket = listenSocket.accept();
 				socketlist.add(clientSocket);
-				new Thread(new ServerThread_2(clientSocket)).start();			
-				Sever_2.ta_info.appendText("客户机连接成功！客户机地址和端口："+clientSocket.getRemoteSocketAddress()+"\n");
+				new Thread(new ServerThread_2(clientSocket)).start();	
+				
+				
+				Sever_2.ta_info.appendText("["+GuiUtils.getCurrentTimeString()+"]"+"客户机"+clientSocket.getRemoteSocketAddress()+"连接成功！\n");
 		    BufferedWriter out = null;
 		    out = new BufferedWriter(
 	                 new OutputStreamWriter(            
@@ -89,25 +98,25 @@ class AcceptThread extends Thread{
 		}
 		
 		//调用类Map_Sort的倒序排序法，将候选人按票数倒序排列
-		ServerThread_2.map = Map_Sort.sortDescend(ServerThread_2.map);
+		map = Map_Sort.sortDescend(map);
 		
 		//向客户端发送投票结果
 		for(Socket s : socketlist) {		
 			try {
-				String map = null;
+				String map_2 = null;
 				BufferedWriter b;
 				b = new BufferedWriter(
 						new OutputStreamWriter(            
 								s.getOutputStream(),"utf-8"));
-				for(String key:ServerThread_2.map.keySet()) {
-					Integer value = ServerThread_2.map.get(key);
-					if(map==null) {
-						map = key +":"+value+";";
+				for(String key:map.keySet()) {
+					Integer value = map.get(key);
+					if(map_2==null) {
+						map_2 = key +":"+value+";";
 					}else {
-						map += key +":"+value+";";
+						map_2 += key +":"+value+";";
 					}
 				}
-				b.write(map); 
+				b.write(map_2); 
 				b.newLine();
 				b.flush();
 			} catch (IOException e) {
@@ -118,16 +127,17 @@ class AcceptThread extends Thread{
 		
 		//在result板输出投票结果
 		Sever_2.ta_result.setText("");
-		for(String key:ServerThread_2.map.keySet()) {
-			Integer value = ServerThread_2.map.get(key);
+		for(String key:map.keySet()) {
+			Integer value = map.get(key);
 			Sever_2.ta_result.appendText(key+":"+value+" 票!\n");
 		} 				
+		System.out.println(socketlist);
 	}		
 }
 
 class ServerThread_2 extends Thread
 {
-	public static Map<String,Integer> map = new HashMap<String,Integer>();
+	
 	ArrayList<String> contentlist = new ArrayList<String>();
 	String vote [] = Sever_2.vote;
 	String select  = null;
@@ -152,18 +162,22 @@ class ServerThread_2 extends Thread
 	//synchronized 保证该代码块在同一时刻只能由一个线程运行
 	synchronized public void run()
 	{
+		
 		//检查map中是否有该候选人，没有则添加，有则累加票数
 		try {
 			select = in.readLine();
-			if(!(map.containsKey(select))) {
-				map.put(select,1);
+			if(!(AcceptThread.map.containsKey(select))) {
+				AcceptThread.map.put(select,1);
 			}else {
-				map.put(select, map.get(select)+1);
+				AcceptThread.map.put(select, AcceptThread.map.get(select)+1);
 			}			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		Sever_2.ta_info.appendText("["+GuiUtils.getCurrentTimeString()+"]"+s.getRemoteSocketAddress()+"已完成投票!\n");
+		
 	}
 }
 
@@ -211,7 +225,7 @@ public class Sever_2 extends Application {
 	static ServerSocket listenSocket = null;
 	static Socket clientSocket = null;
 	TextField tf_addr;
-	Button btn_start,btn_stop;
+	Button btn_start,btn_stop,btn_restart;
     BufferedReader in = null;
     BufferedWriter out = null;
     Thread thread = null;
@@ -231,7 +245,9 @@ public class Sever_2 extends Application {
 		btn_start.setOnAction(this::btnStartHandler);
 		btn_stop = new Button("Stop");
 		btn_stop.setOnAction(this::btnStopHandler);
-		pane_con.addRow(0, lb_addr, tf_addr, btn_start,btn_stop);
+		btn_restart = new Button("Restart");
+		btn_restart.setOnAction(this::btnRestartHandler);
+		pane_con.addRow(0, lb_addr, tf_addr, btn_start,btn_stop,btn_restart);
 		GridPane.setHalignment(lb_addr,HPos.RIGHT);
 		pane_con.setAlignment(Pos.CENTER);
 		pane_con.setHgap(20);
@@ -247,9 +263,9 @@ public class Sever_2 extends Application {
 				+ "在Option框中输入候选人(每人为一行),点击Start开始投票!\n");
 		ta_vote.setPrefSize(200, 100);
 		ta_result.setPrefSize(200, 100);
-		pane_vote.setPrefSize(450, 150);
+		pane_vote.setPrefSize(500, 150);
 		pane_vote.setAlignment(Pos.CENTER);
-		pane_vote.setHgap(20);
+		pane_vote.setHgap(50);
 		pane_vote.setVgap(10);
 		pane_vote.addRow(1,ta_vote,ta_result);
 		pane_vote.addRow(0,lb_vote,lb_result);
@@ -275,7 +291,16 @@ public class Sever_2 extends Application {
 		Scene scene = new Scene(box);
 		stage.setScene(scene);
 		stage.setTitle("Vote Sever 1740224125");
+		
+		//当退出窗口时，结束程序
+		stage.setOnCloseRequest((EventHandler<WindowEvent>) new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent event) {
+                System.exit(0);
+            }
+        });
 		stage.show();
+		
 	}
 	
 	public void btnStartHandler(ActionEvent event){
@@ -288,7 +313,7 @@ public class Sever_2 extends Application {
             listenSocket = new ServerSocket();
             SocketAddress serverAddr=new InetSocketAddress(host,port);
             listenSocket.bind(serverAddr); 
-            ta_info.appendText("服务器启动成功！开始在localhost的5000端口侦听连接..."+"\n");
+            ta_info.appendText("["+GuiUtils.getCurrentTimeString()+"]"+"服务器启动成功！开始在"+host+"上的"+port+"端口侦听连接..."+"\n");
         	}catch (Exception e) {
         		// TODO: handle exception
         		e.printStackTrace();
@@ -299,14 +324,15 @@ public class Sever_2 extends Application {
         
         //控制按钮是否可操作
         btn_start.setDisable(true);
-        btn_stop.setDisable(false);           
+        btn_stop.setDisable(false);  
+        btn_restart.setDisable(true);
     }
 	
 	public void btnStopHandler(ActionEvent event){  
 		//将获取到的地址与端口分离
 		String addr[] = tf_addr.getText().split(":");
     	String host = addr[0];
-    	listenSocket = null;
+//    	listenSocket = null;
     	int port = Integer.parseInt(addr[1]);
     	
     	//设置结束accept标志
@@ -329,6 +355,42 @@ public class Sever_2 extends Application {
 		}
         btn_start.setDisable(true);
         btn_stop.setDisable(true);
+        btn_restart.setDisable(false);
+	}
+	
+	public void btnRestartHandler(ActionEvent event){  
+		//关闭Serversocket,重新绑定
+		try {
+			if (listenSocket!=null) {
+				listenSocket.close();
+				listenSocket=null;
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+        vote = ta_vote.getText().split("/n");
+		String addr[] = tf_addr.getText().split(":"); 
+    	String host = addr[0];
+    	int port = Integer.parseInt(addr[1]);
+        try {
+        	listenSocket = new ServerSocket();
+            SocketAddress serverAddr=new InetSocketAddress(host,port);
+            listenSocket.bind(serverAddr); 
+            ta_info.appendText("["+GuiUtils.getCurrentTimeString()+"]"+"服务器启动成功！开始在"+host+"上的"+port+"端口侦听连接..."+"\n");
+        	}catch (Exception e) {
+        		// TODO: handle exception
+        		e.printStackTrace();
+        	}
+        //调用监听线程
+        thread = new Thread(new AcceptThread());
+        thread.start();
+        
+        //控制按钮是否可操作
+        btn_start.setDisable(true);
+        btn_stop.setDisable(false);
+        btn_restart.setDisable(true);
 	}
 	
 	public static void main(String[] args) {

@@ -15,6 +15,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 
 import javax.swing.JOptionPane;
 
@@ -62,6 +63,7 @@ public class Client_2 extends Application {
 		btn_connect = new Button("Connect");
 		btn_connect.setOnAction(this::btnConnectHandler);
 		btn_disconnect = new Button("Disconnect");
+		btn_disconnect.setDisable(true);
 		btn_disconnect.setOnAction(this::btnDisconnectHandler);
 		pane_con.addRow(0, lb_addr, tf_addr, btn_connect,btn_disconnect);
 		GridPane.setHalignment(lb_addr,HPos.RIGHT);
@@ -84,6 +86,8 @@ public class Client_2 extends Application {
 		btn_get = new Button("                Get               ");
 		btn_vote.setOnAction(this::btnVoteHandler);
 		btn_get.setOnAction(this::btnGetHandler);
+		btn_vote.setDisable(true);
+		btn_get.setDisable(true);
 		pane_vote.setPrefSize(500, 150);
 		pane_vote.setAlignment(Pos.CENTER);
 		pane_vote.setHgap(50);
@@ -124,6 +128,7 @@ public class Client_2 extends Application {
         	String host_name = addr[0];        	
         	int port = Integer.parseInt(addr[1]);
         	socket = new Socket();
+        	socket.setSoTimeout(1*1000);
             SocketAddress remoteAddr=new InetSocketAddress(host_name, port); 
             System.out.println("创建客户机套接字成功！");
             socket.connect(remoteAddr);
@@ -175,20 +180,26 @@ public class Client_2 extends Application {
 	
 	public void btnGetHandler(ActionEvent event){
 		String s = null;
+		btn_vote.setDisable(true);
+	    btn_get.setDisable(true);
+	    btn_connect.setDisable(true);
 		ta_vote.setText("");
 			try {
         		s=in.readLine();
         		ta_vote.appendText(s.replace(";","票!\n"));
         		System.out.println(s);
 	
+			} catch (SocketTimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(null, "投票还未结束!");
+				btn_get.setDisable(false);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			
-			btn_vote.setDisable(true);
-	        btn_get.setDisable(true);
-	        btn_connect.setDisable(true);        
+			        
 	}
 
 	public void btnDisconnectHandler(ActionEvent event){
