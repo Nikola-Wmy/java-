@@ -122,6 +122,11 @@ public class Client_2 extends Application {
 	}
 	
 	public void btnConnectHandler(ActionEvent event){
+		
+		btn_vote.setDisable(false);
+        btn_get.setDisable(true);
+        btn_connect.setDisable(true);
+        
 		String s = null;		
         try {
         	String addr[] = tf_addr.getText().split(":");
@@ -156,11 +161,13 @@ public class Client_2 extends Application {
         } catch (IOException ex) {
             System.out.println("异常信息："+ex.getMessage());
             GuiUtils.showAlert("连接服务器出错！");
+            btn_connect.setDisable(false);
+            btn_vote.setDisable(true);
+            btn_get.setDisable(true);
+            btn_disconnect.setDisable(true);
+           
         }
         
-        btn_vote.setDisable(false);
-        btn_get.setDisable(true);
-        btn_connect.setDisable(true);
 	}
 	
 	public void btnVoteHandler(ActionEvent event){
@@ -183,6 +190,7 @@ public class Client_2 extends Application {
 		btn_vote.setDisable(true);
 	    btn_get.setDisable(true);
 	    btn_connect.setDisable(true);
+	    btn_disconnect.setDisable(false);
 		ta_vote.setText("");
 			try {
         		s=in.readLine();
